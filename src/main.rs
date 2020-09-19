@@ -3,6 +3,7 @@ use failure_derive::Fail;
 use futures_util::sink::SinkExt;
 use tokio::stream::StreamExt;
 use warp::Filter;
+use warp::http::header::{HeaderMap, HeaderValue};
 use warp::ws::{WebSocket, Ws};
 
 type ResultFailure<O> = Result<O, failure::Error>;
@@ -26,7 +27,10 @@ async fn main() -> ResultFailure<()> {
         w.on_upgrade(handle_ws_void)
     });
 
-    let static_route = warp::path::end().and(warp::fs::dir("static"));
+    let mut headers = HeaderMap::new();
+    headers.insert("Cross-Origin-Embedder-Policy", HeaderValue::from_static("require-corp"));
+    headers.insert("Cross-Origin-Opener-Policy", HeaderValue::from_static("same-origin"));
+    let static_route = warp::path::end().and(warp::fs::dir("static")).with(warp::reply::with::headers(headers));
 
     let routes = ws_route.or(static_route);
 
