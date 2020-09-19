@@ -4,36 +4,47 @@
 		<title>Ping Test</title>
 	</head>
 	<body>
+
 	<script>
-(async () => {
+(() => {
 
 	const wsBase = () => {
 		const l = window.location;
 		return `${l.protocol.replace('https:', 'wss:').replace('http:', 'ws:')}//${l.host}${l.pathname.match('.*/')[0]}`;
 	};
 
-	const ping = async (ws, data) => new Promise((resolve, reject) => {
+	const sendAndWait = (ws, data, timeoutMs) => new Promise((resolve, reject) => {
+		let timeoutId = setTimeout(() => {
+			ws.onmessage = undefined;
+			resolve({ timedOut: true, timeoutMs });
+		}, timeoutMs);
 		let sendTimeMs = performance.now();
 		ws.send(data);
 		ws.onmessage = async (event) => {
 			let recvTimeMs = performance.now();
+			clearTimeout(timeoutId);
 			let rttMs = recvTimeMs - sendTimeMs;
-			console.log(`rtt ${rttMs} ms`);
 			ws.onmessage = undefined;
-			resolve();
+			resolve({ timedOut: false, event, rttMs });
 		};
 	});
 
+	const sleep = durationMs => new Promise(resolve => setTimeout(resolve, durationMs));
+
+	const genRandomBytes = n => crypto.getRandomValues(new Uint8Array(n));
+
 	const ws = new WebSocket(`${wsBase()}ws`);
 	ws.onopen = async () => {
-		await ping(ws, new ArrayBuffer(128));
-		await ping(ws, new ArrayBuffer(128));
-		await ping(ws, new ArrayBuffer(128));
-		await ping(ws, new ArrayBuffer(128));
-		await ping(ws, new ArrayBuffer(128));
-		await ping(ws, new ArrayBuffer(128));
-		await ping(ws, new ArrayBuffer(128));
-		await ping(ws, new ArrayBuffer(128));
+		let payload = genRandomBytes(128);
+		for (let i = 0; i != 100; ++i) {
+			const result = await sendAndWait(ws, payload, 2000);
+			if (result.timedOut) {
+				console.log(`${i} timed out`);
+			} else {
+				console.log(`${i} rtt ${result.rttMs} ms`);
+			}
+			await sleep(100);
+		}
 	};
 
 })();
