@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Ping Test</title>
+	</head>
+	<body>
+	<script>
+(async () => {
+
+	const wsBase = () => {
+		const l = window.location;
+		return `${l.protocol.replace('https:', 'wss:').replace('http:', 'ws:')}//${l.host}${l.pathname.match('.*/')[0]}`;
+	};
+
+	const ping = async (ws, data) => new Promise((resolve, reject) => {
+		let sendTimeMs = performance.now();
+		ws.send(data);
+		ws.onmessage = async (event) => {
+			let recvTimeMs = performance.now();
+			let rttMs = recvTimeMs - sendTimeMs;
+			console.log(`rtt ${rttMs} ms`);
+			ws.onmessage = undefined;
+			resolve();
+		};
+	});
+
+	const ws = new WebSocket(`${wsBase()}ws`);
+	ws.onopen = async () => {
+		await ping(ws, new ArrayBuffer(128));
+		await ping(ws, new ArrayBuffer(128));
+		await ping(ws, new ArrayBuffer(128));
+		await ping(ws, new ArrayBuffer(128));
+		await ping(ws, new ArrayBuffer(128));
+		await ping(ws, new ArrayBuffer(128));
+		await ping(ws, new ArrayBuffer(128));
+		await ping(ws, new ArrayBuffer(128));
+	};
+
+})();
+	</script>
+	</body>
+</html>
