@@ -2,50 +2,88 @@
 <html>
 	<head>
 		<title>Ping Test</title>
+		<style>
+body, html {
+	margin: 0;
+	padding: 0;
+}
+		</style>
 	</head>
 	<body>
+
+	<span id="result"></span>
 
 	<script>
 (() => {
 
-	const wsBase = () => {
-		const l = window.location;
-		return `${l.protocol.replace('https:', 'wss:').replace('http:', 'ws:')}//${l.host}${l.pathname.match('.*/')[0]}`;
+const wsBase = () => {
+	const l = window.location;
+	return `${l.protocol.replace('https:', 'wss:').replace('http:', 'ws:')}//${l.host}${l.pathname.match('.*/')[0]}`;
+};
+
+const sendAndWait = (ws, data, timeoutMs) => new Promise((resolve, reject) => {
+	const timeoutId = setTimeout(() => {
+		ws.onmessage = undefined;
+		resolve({ timedOut: true, timeoutMs });
+	}, timeoutMs);
+	const sendTimeMs = performance.now();
+	ws.send(data);
+	ws.onmessage = async (event) => {
+		const recvTimeMs = performance.now();
+		clearTimeout(timeoutId);
+		const rttMs = recvTimeMs - sendTimeMs;
+		ws.onmessage = undefined;
+		resolve({ timedOut: false, event, rttMs });
 	};
+});
 
-	const sendAndWait = (ws, data, timeoutMs) => new Promise((resolve, reject) => {
-		let timeoutId = setTimeout(() => {
-			ws.onmessage = undefined;
-			resolve({ timedOut: true, timeoutMs });
-		}, timeoutMs);
-		let sendTimeMs = performance.now();
-		ws.send(data);
-		ws.onmessage = async (event) => {
-			let recvTimeMs = performance.now();
-			clearTimeout(timeoutId);
-			let rttMs = recvTimeMs - sendTimeMs;
-			ws.onmessage = undefined;
-			resolve({ timedOut: false, event, rttMs });
-		};
-	});
+const sleep = durationMs => new Promise(resolve => setTimeout(resolve, durationMs));
 
-	const sleep = durationMs => new Promise(resolve => setTimeout(resolve, durationMs));
+const genRandomBytes = n => crypto.getRandomValues(new Uint8Array(n));
 
-	const genRandomBytes = n => crypto.getRandomValues(new Uint8Array(n));
-
+const pingTest = (url, payloadFn, timeout, count, progressCb) => new Promise((resolve, reject) => {
+	let emitted = false;
+	const rejectOnce = () => {
+		emitted = true;
+		reject();
+	};
 	const ws = new WebSocket(`${wsBase()}ws`);
+	ws.onclose = rejectOnce;
+	ws.onerror = rejectOnce;
 	ws.onopen = async () => {
-		let payload = genRandomBytes(128);
-		for (let i = 0; i != 100; ++i) {
-			const result = await sendAndWait(ws, payload, 2000);
+		const rtts = [];
+		for (let i = 0; i != count; ++i) {
+			const payload = payloadFn;
+			const result = await sendAndWait(ws, payload, timeout);
+			progressCb(i + 1);
 			if (result.timedOut) {
 				console.log(`${i} timed out`);
+				rejectOnce();
+				break;
 			} else {
-				console.log(`${i} rtt ${result.rttMs} ms`);
+				//console.log(`${i} rtt ${result.rttMs} ms`);
+				rtts.push(result.rttMs);
 			}
-			await sleep(100);
 		}
+		if (!emitted) {
+			emitted = true;
+			resolve(rtts);
+		}
+		ws.close();
 	};
+});
+
+(async () => {
+	const resultElt = document.getElementById('result');
+	try {
+		resultElt.innerHTML = '0/100';
+		const rtts = await pingTest(`${wsBase()}ws`, () => getRandomValues(128), 2000, 100, (i) => (resultElt.innerHTML = `${i}/100`));
+		rtts.sort();
+		resultElt.innerHTML = `${rtts[0].toFixed(3)} ms`;
+	} catch (e) {
+		resultElt.innerHTML = 'Err';
+	}
+})();
 
 })();
 	</script>
