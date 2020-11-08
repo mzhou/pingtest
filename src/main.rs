@@ -8,6 +8,7 @@ use warp::Filter;
 
 type ResultFailure<O> = Result<O, failure::Error>;
 
+const HTML_BYTES: &[u8] = include_bytes!("../static/index.html");
 const LISTEN_ADDR: &str = "LISTEN_ADDR";
 
 #[tokio::main]
@@ -41,11 +42,10 @@ async fn main() -> ResultFailure<()> {
         "Cross-Origin-Opener-Policy",
         HeaderValue::from_static("same-origin"),
     );
-    let static_route = warp::path::end()
-        .and(warp::fs::dir("static"))
-        .with(warp::reply::with::headers(headers));
 
-    let routes = ws_route.or(static_route);
+    let html_route = warp::path::end().map(|| warp::http::Response::builder().body(HTML_BYTES));
+
+    let routes = ws_route.or(html_route);
 
     warp::serve(routes).run(listen_addr).await;
 
