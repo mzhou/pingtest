@@ -61,7 +61,7 @@ const pingTest = (url, payloadFn, timeout, count, progressCb) => new Promise((re
 				rejectOnce();
 				break;
 			} else {
-				//console.log(`${i} rtt ${result.rttMs} ms`);
+				console.log(`${i} rtt ${result.rttMs} ms`);
 				rtts.push(result.rttMs);
 			}
 		}

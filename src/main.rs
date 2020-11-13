@@ -43,7 +43,7 @@ async fn main() -> ResultFailure<()> {
         HeaderValue::from_static("same-origin"),
     );
 
-    let html_route = warp::path::end().map(|| warp::http::Response::builder().body(HTML_BYTES));
+    let html_route = warp::path::end().map(|| warp::http::Response::builder().body(HTML_BYTES)).with(warp::reply::with::headers(headers));
 
     let routes = ws_route.or(html_route);
 
