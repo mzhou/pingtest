@@ -1,17 +1,29 @@
 <!DOCTYPE html>
 <html>
 	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 		<title>Ping Test</title>
 		<style>
-body, html {
+body,
+div,
+html
+{
+	height: 1.2em;
+	line-height: 1.2em;
 	margin: 0;
 	padding: 0;
+	overflow: hidden;
+	text-align: center;
+}
+div
+{
+	display: inline-block;
 }
 		</style>
 	</head>
 	<body>
 
-	<span id="result"></span>
+	<div id="result"></div>
 
 	<script>
 (() => {
@@ -73,16 +85,28 @@ const pingTest = (url, payloadFn, timeout, count, progressCb) => new Promise((re
 	};
 });
 
+const postMessageParent = (message, targetOrigin, transfer) => {
+	if (window.parent === window) {
+		return;
+	}
+	return window.parent.postMessage(message, targetOrigin, transfer);
+};
+
 (async () => {
 	const resultElt = document.getElementById('result');
 	try {
-		resultElt.innerHTML = '0/100';
-		const rtts = await pingTest(`${wsBase()}ws`, () => getRandomValues(128), 2000, 100, (i) => (resultElt.innerHTML = `${i}/100`));
+		resultElt.innerText = '0/100';
+		const rtts = await pingTest(`${wsBase()}ws`, () => getRandomValues(128), 2000, 100, (i) => (resultElt.innerText = `${i}/100`));
+		postMessageParent({ rtts, type: 'rtts' }, "*");
 		rtts.sort();
-		resultElt.innerHTML = `${rtts[0].toFixed(3)} ms`;
+		resultElt.innerText = `${rtts[0].toFixed(3)} ms`;
 	} catch (e) {
-		resultElt.innerHTML = 'Err';
+		postMessageParent({ type: 'err' }, "*");
+		resultElt.innerText = 'Err';
 	}
+	const cs = getComputedStyle(resultElt);
+	const csP = p => cs.getPropertyValue(p);
+	postMessageParent({ height: csP('height'), type: 'display', text: resultElt.innerText, width: csP('width') }, "*");
 })();
 
 })();
