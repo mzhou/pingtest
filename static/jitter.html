@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+		<title>Jitter Test</title>
+		<style>
+body,
+div,
+html
+{
+	height: 1.2em;
+	line-height: 1.2em;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	text-align: center;
+}
+div
+{
+	display: inline-block;
+}
+		</style>
+	</head>
+	<body>
+
+	<div id="result"></div>
+
+	<script>
+(() => {
+
+const wsBase = () => {
+	const l = window.location;
+	return `${l.protocol.replace('https:', 'wss:').replace('http:', 'ws:')}//${l.host}${l.pathname.match('.*/')[0]}`;
+};
+
+const sendAndWait = (ws, data, timeoutMs) => new Promise((resolve, reject) => {
+	const timeoutId = setTimeout(() => {
+		ws.onmessage = undefined;
+		resolve({ timedOut: true, timeoutMs });
+	}, timeoutMs);
+	const sendTimeMs = performance.now();
+	ws.send(data);
+	ws.onmessage = async (event) => {
+		const recvTimeMs = performance.now();
+		clearTimeout(timeoutId);
+		const rttMs = recvTimeMs - sendTimeMs;
+		ws.onmessage = undefined;
+		resolve({ timedOut: false, event, rttMs });
+	};
+});
+
+const percentile = (a, p) => a[Math.floor(p * (a.length - 1))];
+
+const jitterTest = (url, progressCb) => new Promise((resolve, reject) => {
+	let emitted = false;
+	const rejectOnce = () => {
+		emitted = true;
+		reject();
+	};
+	const ws = new WebSocket(url);
+	ws.onclose = rejectOnce;
+	ws.onerror = rejectOnce;
+	ws.onopen = async () => {
+		const start_ts = performance.now();
+		const diffs = [];
+		ws.onmessage = async (event) => {
+			const ts = performance.now();
+			const buf = await event.data.arrayBuffer();
+			const arr = new Float64Array(buf);
+			const remoteTs = arr[0];
+			const sample = remoteTs - ts;
+			diffs.push(sample);
+			if (diffs.length > 1200) {
+				diffs.shift();
+			}
+			if (diffs.length >= 100) {
+				const longTermDiffs = diffs.slice();
+				longTermDiffs.sort((l, r) => (l - r));
+				const median = percentile(longTermDiffs, .5);
+				const shortTermDiffs = diffs.slice(-100);
+				shortTermDiffs.sort();
+				const shortTerm = Math.max(Math.abs(percentile(shortTermDiffs, .05) - median), Math.abs(percentile(shortTermDiffs, .95) - median));
+				const longTerm = Math.max(Math.abs(percentile(longTermDiffs, .05) - median), Math.abs(percentile(longTermDiffs, .95) - median));
+				progressCb({ longTerm, shortTerm, type: 'result' });
+			} else {
+				progressCb({ done: diffs.length, needed: 100, type: 'loading' });
+			}
+		};
+		const msg = new Uint8Array([1]);
+		ws.send(msg);
+	};
+});
+
+(async () => {
+	const resultElt = document.getElementById('result');
+	await jitterTest(`${wsBase()}ws2`, (progress) => {
+		if (progress.type === 'result') {
+			resultElt.innerText = `5s: ${progress.shortTerm.toFixed(3)} ms | 60s: ${progress.longTerm.toFixed(3)} ms`;
+		} else if (progress.type === 'loading') {
+			resultElt.innerText = `${progress.done}/${progress.needed}`;
+		}
+	});
+})();
+
+})();
+	</script>
+	</body>
+</html>

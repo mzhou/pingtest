@@ -59,7 +59,7 @@ const pingTest = (url, payloadFn, timeout, count, progressCb) => new Promise((re
 		emitted = true;
 		reject();
 	};
-	const ws = new WebSocket(`${wsBase()}ws`);
+	const ws = new WebSocket(url);
 	ws.onclose = rejectOnce;
 	ws.onerror = rejectOnce;
 	ws.onopen = async () => {
@@ -98,7 +98,7 @@ const postMessageParent = (message, targetOrigin, transfer) => {
 		resultElt.innerText = '0/100';
 		const rtts = await pingTest(`${wsBase()}ws`, () => getRandomValues(128), 2000, 100, (i) => (resultElt.innerText = `${i}/100`));
 		postMessageParent({ rtts, type: 'rtts' }, "*");
-		rtts.sort();
+		rtts.sort((l, r) => (l - r));
 		resultElt.innerText = `${rtts[0].toFixed(3)} ms`;
 	} catch (e) {
 		postMessageParent({ type: 'err' }, "*");

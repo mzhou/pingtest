@@ -1,14 +1,17 @@
+use std::time::{Duration, Instant};
+
 use clap::{App, Arg};
 use failure_derive::Fail;
 use futures_util::sink::SinkExt;
 use tokio::stream::StreamExt;
+use warp::Filter;
 use warp::http::header::{HeaderMap, HeaderValue};
 use warp::ws::{WebSocket, Ws};
-use warp::Filter;
 
 type ResultFailure<O> = Result<O, failure::Error>;
 
-const HTML_BYTES: &[u8] = include_bytes!("../static/index.html");
+const INDEX_HTML_BYTES: &[u8] = include_bytes!("../static/index.html");
+const JITTER_HTML_BYTES: &[u8] = include_bytes!("../static/jitter.html");
 const LISTEN_ADDR: &str = "LISTEN_ADDR";
 
 #[tokio::main]
@@ -33,19 +36,27 @@ async fn main() -> ResultFailure<()> {
         .and(warp::ws())
         .map(|w: Ws| w.on_upgrade(handle_ws_void));
 
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "Cross-Origin-Embedder-Policy",
-        HeaderValue::from_static("require-corp"),
-    );
-    headers.insert(
-        "Cross-Origin-Opener-Policy",
-        HeaderValue::from_static("same-origin"),
-    );
+    let ws2_route = warp::path("ws2")
+        .and(warp::ws())
+        .map(|w: Ws| w.on_upgrade(handle_ws2_void));
 
-    let html_route = warp::path::end().map(|| warp::http::Response::builder().body(HTML_BYTES)).with(warp::reply::with::headers(headers));
+    let html_page = |b| {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Cross-Origin-Embedder-Policy",
+            HeaderValue::from_static("require-corp"),
+        );
+        headers.insert(
+            "Cross-Origin-Opener-Policy",
+            HeaderValue::from_static("same-origin"),
+        );
+        warp::any().map(move || warp::http::Response::builder().body(b)).with(warp::reply::with::headers(headers))
+    };
 
-    let routes = ws_route.or(html_route);
+    let jitter_html_route = warp::path("jitter.html").and(html_page(JITTER_HTML_BYTES));
+    let index_html_route = warp::path::end().and(html_page(INDEX_HTML_BYTES));
+
+    let routes = ws_route.or(ws2_route).or(jitter_html_route).or(index_html_route);
 
     warp::serve(routes).run(listen_addr).await;
 
@@ -64,5 +75,25 @@ async fn handle_ws(mut sock: WebSocket) -> ResultFailure<()> {
     loop {
         let msg = sock.next().await.ok_or(EndOfStreamError {})??;
         sock.send(msg).await?;
+    }
+}
+
+async fn handle_ws2_void(sock: WebSocket) -> () {
+    let _ = handle_ws2(sock).await;
+}
+
+async fn handle_ws2(mut sock: WebSocket) -> ResultFailure<()> {
+    let first_msg = sock.next().await.ok_or(EndOfStreamError {})??;
+    if b"\x01" == first_msg.as_bytes() { // jitter 50 ms
+        let start_instant = Instant::now();
+        loop {
+            let instant = Instant::now();
+            let ts = (instant - start_instant).as_nanos() as f64 / 1_000_000.; // millis
+            let msg = warp::ws::Message::binary(ts.to_le_bytes());
+            sock.send(msg).await?;
+            tokio::time::delay_for(Duration::from_millis(50)).await;
+        }
+    } else {
+        Ok(())
     }
 }
