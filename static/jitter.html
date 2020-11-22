@@ -78,7 +78,7 @@ const jitterTest = (url, progressCb) => new Promise((resolve, reject) => {
 				longTermDiffs.sort((l, r) => (l - r));
 				const median = percentile(longTermDiffs, .5);
 				const shortTermDiffs = diffs.slice(-100);
-				shortTermDiffs.sort();
+				shortTermDiffs.sort((l, r) => (l - r));
 				const shortTerm = Math.max(Math.abs(percentile(shortTermDiffs, .05) - median), Math.abs(percentile(shortTermDiffs, .95) - median));
 				const longTerm = Math.max(Math.abs(percentile(longTermDiffs, .05) - median), Math.abs(percentile(longTermDiffs, .95) - median));
 				progressCb({ longTerm, shortTerm, type: 'result' });
