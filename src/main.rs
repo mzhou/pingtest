@@ -4,8 +4,9 @@ use async_stream::stream;
 use clap::{App, Arg};
 use failure_derive::Fail;
 use futures::Stream;
-use futures_util::sink::SinkExt;
-use tokio::stream::StreamExt;
+use futures::sink::SinkExt;
+use futures::stream::StreamExt;
+use serde_json::json;
 use warp::Filter;
 use warp::http::header::{HeaderMap, HeaderValue};
 use warp::ws::{WebSocket, Ws};
@@ -99,7 +100,7 @@ async fn handle_ws2(mut sock: WebSocket) -> ResultFailure<()> {
             let ts = (instant - start_instant).as_nanos() as f64 / 1_000_000.; // millis
             let msg = warp::ws::Message::binary(ts.to_le_bytes());
             sock.send(msg).await?;
-            tokio::time::delay_for(Duration::from_millis(50)).await;
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
     } else {
         Ok(())
@@ -108,9 +109,13 @@ async fn handle_ws2(mut sock: WebSocket) -> ResultFailure<()> {
 
 fn jitter_sse_events() -> impl Stream<Item = Result<warp::sse::Event, std::convert::Infallible>> {
     stream! {
+        let start_instant = Instant::now();
         loop {
-            yield Ok(warp::sse::Event::default().data("lol"));
-            tokio::time::delay_for(Duration::from_millis(50)).await;
+            let instant = Instant::now();
+            let ts = (instant - start_instant).as_nanos() as f64 / 1_000_000.; // millis
+            let msg = json!(ts).to_string();
+            yield Ok(warp::sse::Event::default().data(msg));
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
 }
