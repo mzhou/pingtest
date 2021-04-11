@@ -1,7 +1,9 @@
 use std::time::{Duration, Instant};
 
+use async_stream::stream;
 use clap::{App, Arg};
 use failure_derive::Fail;
+use futures::Stream;
 use futures_util::sink::SinkExt;
 use tokio::stream::StreamExt;
 use warp::Filter;
@@ -40,6 +42,12 @@ async fn main() -> ResultFailure<()> {
         .and(warp::ws())
         .map(|w: Ws| w.on_upgrade(handle_ws2_void));
 
+    let jitter_sse_route = warp::path("jitter.sse")
+        .and(warp::get())
+        .map(|| {
+            warp::sse::reply(warp::sse::keep_alive().stream(jitter_sse_events()))
+        });
+
     let html_page = |b| {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -56,7 +64,7 @@ async fn main() -> ResultFailure<()> {
     let jitter_html_route = warp::path("jitter.html").and(html_page(JITTER_HTML_BYTES));
     let index_html_route = warp::path::end().and(html_page(INDEX_HTML_BYTES));
 
-    let routes = ws_route.or(ws2_route).or(jitter_html_route).or(index_html_route);
+    let routes = ws_route.or(ws2_route).or(jitter_sse_route).or(jitter_html_route).or(index_html_route);
 
     warp::serve(routes).run(listen_addr).await;
 
@@ -95,5 +103,14 @@ async fn handle_ws2(mut sock: WebSocket) -> ResultFailure<()> {
         }
     } else {
         Ok(())
+    }
+}
+
+fn jitter_sse_events() -> impl Stream<Item = Result<warp::sse::Event, std::convert::Infallible>> {
+    stream! {
+        loop {
+            yield Ok(warp::sse::Event::default().data("lol"));
+            tokio::time::delay_for(Duration::from_millis(50)).await;
+        }
     }
 }
