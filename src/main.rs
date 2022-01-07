@@ -6,14 +6,14 @@ use async_stream::stream;
 use bytes::Bytes;
 use clap::{App, Arg};
 use failure_derive::Fail;
-use futures::Stream;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
+use futures::Stream;
 use serde_json::json;
-use tokio::time::sleep;
-use warp::Filter;
+//use tokio::time::sleep;
 use warp::http::header::{HeaderMap, HeaderValue};
 use warp::ws::{WebSocket, Ws};
+use warp::Filter;
 
 type ResultFailure<O> = Result<O, failure::Error>;
 
