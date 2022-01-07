@@ -6,13 +6,14 @@ use async_stream::stream;
 use bytes::Bytes;
 use clap::{App, Arg};
 use failure_derive::Fail;
+use futures::Stream;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
-use futures::Stream;
 use serde_json::json;
+use tokio::time::sleep;
+use warp::Filter;
 use warp::http::header::{HeaderMap, HeaderValue};
 use warp::ws::{WebSocket, Ws};
-use warp::Filter;
 
 type ResultFailure<O> = Result<O, failure::Error>;
 
@@ -55,7 +56,7 @@ async fn main() -> ResultFailure<()> {
         .and(warp::post())
         .and(warp::filters::body::content_length_limit(64 * 1024 - 1))
         .and(warp::filters::body::bytes())
-        .map(handle_echo);
+        .and_then(handle_echo);
 
     let html_page = |b| {
         let mut headers = HeaderMap::new();
@@ -89,11 +90,12 @@ async fn main() -> ResultFailure<()> {
     Ok(())
 }
 
-fn handle_echo(b: Bytes) -> Result<warp::http::Response<Bytes>, warp::http::Error> {
+async fn handle_echo(b: Bytes) -> Result<warp::http::Response<Bytes>, warp::Rejection> {
+    sleep(Duration::from_millis(100)).await;
     warp::http::Response::builder()
         .status(200)
-        .header("Content-Type", "application/octet-stream")
         .body(b)
+        .map_err(|_| warp::reject::reject())
 }
 
 async fn handle_ws_void(sock: WebSocket) -> () {

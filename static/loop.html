@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+		<title>Ping Test</title>
+		<style>
+body,
+html
+{
+	height: 1.2em;
+	line-height: 1.2em;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	text-align: center;
+}
+		</style>
+	</head>
+	<body>
+		<table>
+			<tr>
+				<td id="result_0"></td>
+				<td id="result_1"></td>
+				<td id="result_2"></td>
+				<td id="result_3"></td>
+				<td id="result_4"></td>
+				<td id="result_5"></td>
+				<td id="result_6"></td>
+				<td id="result_7"></td>
+				<td id="result_8"></td>
+				<td id="result_9"></td>
+			</tr>
+			<tr>
+				<td id="result_10"></td>
+				<td id="result_11"></td>
+				<td id="result_12"></td>
+				<td id="result_13"></td>
+				<td id="result_14"></td>
+				<td id="result_15"></td>
+				<td id="result_16"></td>
+				<td id="result_17"></td>
+				<td id="result_18"></td>
+				<td id="result_19"></td>
+			</tr>
+			<tr>
+				<td id="result_20"></td>
+				<td id="result_21"></td>
+				<td id="result_22"></td>
+				<td id="result_23"></td>
+				<td id="result_24"></td>
+				<td id="result_25"></td>
+				<td id="result_26"></td>
+				<td id="result_27"></td>
+				<td id="result_28"></td>
+				<td id="result_29"></td>
+			</tr>
+			<tr>
+				<td id="result_30"></td>
+				<td id="result_31"></td>
+				<td id="result_32"></td>
+				<td id="result_33"></td>
+				<td id="result_34"></td>
+				<td id="result_35"></td>
+				<td id="result_36"></td>
+				<td id="result_37"></td>
+				<td id="result_38"></td>
+				<td id="result_39"></td>
+			</tr>
+			<tr>
+				<td id="result_40"></td>
+				<td id="result_41"></td>
+				<td id="result_42"></td>
+				<td id="result_43"></td>
+				<td id="result_44"></td>
+				<td id="result_45"></td>
+				<td id="result_46"></td>
+				<td id="result_47"></td>
+				<td id="result_48"></td>
+				<td id="result_49"></td>
+			</tr>
+			<tr>
+				<td id="result_50"></td>
+				<td id="result_51"></td>
+				<td id="result_52"></td>
+				<td id="result_53"></td>
+				<td id="result_54"></td>
+				<td id="result_55"></td>
+				<td id="result_56"></td>
+				<td id="result_57"></td>
+				<td id="result_58"></td>
+				<td id="result_59"></td>
+			</tr>
+			<tr>
+				<td id="result_60"></td>
+				<td id="result_61"></td>
+				<td id="result_62"></td>
+				<td id="result_63"></td>
+				<td id="result_64"></td>
+				<td id="result_65"></td>
+				<td id="result_66"></td>
+				<td id="result_67"></td>
+				<td id="result_68"></td>
+				<td id="result_69"></td>
+			</tr>
+			<tr>
+				<td id="result_70"></td>
+				<td id="result_71"></td>
+				<td id="result_72"></td>
+				<td id="result_73"></td>
+				<td id="result_74"></td>
+				<td id="result_75"></td>
+				<td id="result_76"></td>
+				<td id="result_77"></td>
+				<td id="result_78"></td>
+				<td id="result_79"></td>
+			</tr>
+			<tr>
+				<td id="result_80"></td>
+				<td id="result_81"></td>
+				<td id="result_82"></td>
+				<td id="result_83"></td>
+				<td id="result_84"></td>
+				<td id="result_85"></td>
+				<td id="result_86"></td>
+				<td id="result_87"></td>
+				<td id="result_88"></td>
+				<td id="result_89"></td>
+			</tr>
+			<tr>
+				<td id="result_90"></td>
+				<td id="result_91"></td>
+				<td id="result_92"></td>
+				<td id="result_93"></td>
+				<td id="result_94"></td>
+				<td id="result_95"></td>
+				<td id="result_96"></td>
+				<td id="result_97"></td>
+				<td id="result_98"></td>
+				<td id="result_99"></td>
+			</tr>
+		</table>
+		<script>
+(async () => {
+
+const genRandomBytes = n => crypto.getRandomValues(new Uint8Array(n));
+
+const pingTest = (data, timeoutMs, progressFn, progressIntervalMs) => new Promise((resolve, reject) => {
+	const startMs = performance.now();
+	const aborter = new AbortController();
+	const req = fetch('/echo', {
+		body: data,
+		method: 'POST',
+		signal: aborter.signal,
+	});
+	let progressTimer;
+	const wrapProgressFn = () => {
+		const nowMs = performance.now();
+		const elapsedMs = nowMs - startMs;
+		progressFn(elapsedMs);
+		progressTimer = setTimeout(wrapProgressFn, progressIntervalMs);
+	};
+	progressTimer = setTimeout(wrapProgressFn, progressIntervalMs);
+	const timeoutTimer = setTimeout(aborter.abort, timeoutMs);
+	(async () => {
+		try {
+			const res = await req;
+			const nowMs = performance.now();
+			const resultMs = nowMs - startMs;
+			resolve(resultMs);
+		} catch (e) {
+			resolve(undefined);
+		}
+		clearTimeout(timeoutTimer);
+		clearTimeout(progressTimer);
+	})();
+});
+
+const sleep = durationMs => new Promise(resolve => setTimeout(resolve, durationMs));
+
+for (; ; ) {
+	const progressFn = elapsedMs => { return; console.log(`progress ${elapsedMs} ms`) ;};
+	const resultMs = await pingTest(genRandomBytes(128), 2000, progressFn, 1);
+	//console.log(`result ${resultMs} ms`);
+}
+
+})();
+		</script>
+	</body>
+</html>

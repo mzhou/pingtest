@@ -65,7 +65,7 @@ const pingTest = (url, payloadFn, timeout, count, progressCb) => new Promise((re
 	ws.onopen = async () => {
 		const rtts = [];
 		for (let i = 0; i != count; ++i) {
-			const payload = payloadFn;
+			const payload = payloadFn();
 			const result = await sendAndWait(ws, payload, timeout);
 			progressCb(i + 1);
 			if (result.timedOut) {
@@ -96,7 +96,7 @@ const postMessageParent = (message, targetOrigin, transfer) => {
 	const resultElt = document.getElementById('result');
 	try {
 		resultElt.innerText = '0/100';
-		const rtts = await pingTest(`${wsBase()}ws`, () => getRandomValues(128), 2000, 100, (i) => (resultElt.innerText = `${i}/100`));
+		const rtts = await pingTest(`${wsBase()}ws`, () => genRandomBytes(128), 2000, 100, (i) => (resultElt.innerText = `${i}/100`));
 		postMessageParent({ rtts, type: 'rtts' }, "*");
 		rtts.sort((l, r) => (l - r));
 		resultElt.innerText = `${rtts[0].toFixed(3)} ms`;
