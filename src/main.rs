@@ -91,7 +91,7 @@ async fn main() -> ResultFailure<()> {
 }
 
 async fn handle_echo(b: Bytes) -> Result<warp::http::Response<Bytes>, warp::Rejection> {
-    sleep(Duration::from_millis(100)).await;
+    //sleep(Duration::from_millis(100)).await;
     warp::http::Response::builder()
         .status(200)
         .body(b)

@@ -4,16 +4,25 @@
 		<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 		<title>Ping Test</title>
 		<style>
+
 body,
 html
 {
-	height: 1.2em;
-	line-height: 1.2em;
 	margin: 0;
 	padding: 0;
-	overflow: hidden;
 	text-align: center;
 }
+
+/* https://www.colourlovers.com/palette/4848994/Cuisine */
+.latest
+{
+	background-color: #b6ed5d;
+}
+.pending
+{
+	background-color: #f6d870;
+}
+
 		</style>
 	</head>
 	<body>
@@ -177,10 +186,22 @@ const pingTest = (data, timeoutMs, progressFn, progressIntervalMs) => new Promis
 
 const sleep = durationMs => new Promise(resolve => setTimeout(resolve, durationMs));
 
-for (; ; ) {
-	const progressFn = elapsedMs => { return; console.log(`progress ${elapsedMs} ms`) ;};
+const resultElts = [];
+
+for (let i = 0; i < 100; i++) {
+	resultElts.push(document.getElementById(`result_${i}`));
+}
+
+for (let i = 0; ; ++i) {
+	i = (i + 100) % 100;
+	const prev = (i + 99) % 100;
+	const progressFn = elapsedMs => { resultElts[i].innerText = elapsedMs.toFixed(0); };
+	resultElts[i].classList.add('pending');
 	const resultMs = await pingTest(genRandomBytes(128), 2000, progressFn, 1);
-	//console.log(`result ${resultMs} ms`);
+	resultElts[i].classList.remove('pending');
+	resultElts[i].innerText = resultMs !== undefined ? resultMs.toFixed(0) : 'Err';
+	resultElts[i].classList.add('latest');
+	resultElts[prev].classList.remove('latest');
 }
 
 })();
