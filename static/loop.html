@@ -13,6 +13,17 @@ html
 	text-align: center;
 }
 
+table
+{
+	border-spacing: 0;
+	border-collapse: collapse;
+}
+
+td, th
+{
+	border: 1px solid black;
+}
+
 /* https://www.colourlovers.com/palette/4848994/Cuisine */
 .latest
 {
@@ -241,7 +252,7 @@ for (let i = 0; ; ++i) {
 	resultElts[i].classList.add('latest');
 	resultElts[prev].classList.remove('latest');
 	if (cycles >= 1) {
-		const sortedResultsMs = resultsMs.slice().sort();
+		const sortedResultsMs = resultsMs.slice().sort((l, r) => (l - r));
 		const errCount = (() => {
 			let ret = 0;
 			for (let j = 0; j != sortedResultsMs.length; j++) {
